@@ -3,7 +3,8 @@
 
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, user-scalable=no, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0">
+  <meta name="viewport" 
+        content="width=device-width, user-scalable=no, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0">
   <meta http-equiv="X-UA-Compatible" content="ie=edge">
   <title>PWAGram</title>
   <link href="https://fonts.googleapis.com/css?family=Roboto:400,700" rel="stylesheet">
@@ -87,7 +88,11 @@
             </div>
           </form>
         </div>
-        <img src="/src/images/main-image.jpg" alt="Explore the City" class="main-image">
+        <img src="/src/images/main-image.jpg" 
+            srcset="/src/images/main-image-lg.jpg 1200w,
+                  /src/images/main-image.jpg 900w,
+                  /src/images/main-image-sm.jpg 480w"    
+        alt="Explore the City" class="main-image">
         <div class="page-content">
           <h5 class="text-center mdl-color-text--primary">Share your Moments</h5>
           <div id="shared-moments"></div>

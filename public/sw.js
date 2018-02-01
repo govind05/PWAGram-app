@@ -1,7 +1,7 @@
 importScripts('/src/js/idb.js');
 importScripts('/src/js/utility.js');
 
-const CACHE_STATIC_NAME = 'static-v19';
+const CACHE_STATIC_NAME = 'static-v25';
 const CACHE_DYNAMIC_NAME = 'dynamic-v3';
 const STATIC_FILES = ['/',
   '/index.html',
@@ -177,3 +177,41 @@ self.addEventListener('fetch', function (event) {
 //     fetch(event.request)
 //   )
 // });
+
+self.addEventListener('sync', function (event) {
+  console.log('[Service Worker] Background Syncing', event);
+  if (event.tag === 'sync-new-posts') {
+    console.log('[Service Worker] Syncing new posts');
+    event.waitUntil(
+      readAllData('sync-posts')
+        .then(data => {
+          for(let dt of data){
+            fetch('https://us-central1-pwagram-41a48.cloudfunctions.net/storePostData', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json'
+              },
+              body: JSON.stringify({
+                id: dt.id,
+                title: dt.title,
+                location: dt.location,
+                image: "https://firebasestorage.googleapis.com/v0/b/pwagram-41a48.appspot.com/o/Copy%20of%20DSC_0018.JPG?alt=media&token=88aa4852-f00f-4bd7-8453-f960a10604bb"
+              })
+            })
+              .then(res => {
+                console.log('sent data', res);
+                if(res.ok){
+                  res.json()
+                  .then(resData => {
+                    deleteItemFromData('sync-posts', resData.id);
+                  });
+                }
+              })
+              .catch(err => console.log('Error while sending data', err));
+          }
+
+        })
+    );
+  }
+});
