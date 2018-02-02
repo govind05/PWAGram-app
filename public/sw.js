@@ -1,7 +1,7 @@
 importScripts('/src/js/idb.js');
 importScripts('/src/js/utility.js');
 
-const CACHE_STATIC_NAME = 'static-v25';
+const CACHE_STATIC_NAME = 'static-v26';
 const CACHE_DYNAMIC_NAME = 'dynamic-v3';
 const STATIC_FILES = ['/',
   '/index.html',
@@ -185,7 +185,7 @@ self.addEventListener('sync', function (event) {
     event.waitUntil(
       readAllData('sync-posts')
         .then(data => {
-          for(let dt of data){
+          for (let dt of data) {
             fetch('https://us-central1-pwagram-41a48.cloudfunctions.net/storePostData', {
               method: 'POST',
               headers: {
@@ -201,11 +201,11 @@ self.addEventListener('sync', function (event) {
             })
               .then(res => {
                 console.log('sent data', res);
-                if(res.ok){
+                if (res.ok) {
                   res.json()
-                  .then(resData => {
-                    deleteItemFromData('sync-posts', resData.id);
-                  });
+                    .then(resData => {
+                      deleteItemFromData('sync-posts', resData.id);
+                    });
                 }
               })
               .catch(err => console.log('Error while sending data', err));
@@ -214,4 +214,58 @@ self.addEventListener('sync', function (event) {
         })
     );
   }
+});
+
+self.addEventListener('notificationclick', event => {
+  let notification = event.notification;
+  let action = event.action;
+
+  console.log(notification);
+
+  if (action === 'confirm') {
+    console.log('Confirm was chosen');
+    notification.close();
+  } else {
+    console.log(action);
+    event.waitUntil(
+      clients.matchAll()
+        .then(clis => {
+          let client = clis.find(c => c.visibilityState === 'visible');
+          if (client !== undefined) {
+            client.navigate(notification.data.url);
+            client.focus();
+          } else {
+            clients.openWindow(notification.data.url);
+          }
+          notification.close();
+        })
+    );
+  }
+});
+
+self.addEventListener('notificationclose', event => {
+  console.log('notification closed', event);
+});
+
+self.addEventListener('push', event => {
+  console.log('Push notification received', event);
+
+  let data = { title: 'New!', content: 'Something new happened!', openUrl: '/' };
+
+  if (event.data) {
+    data = JSON.parse(event.data.text());
+  }
+
+  let options = {
+    body: data.content,
+    icon: '/src/images/icons/app-icon-96x96.png',
+    badge: '/src/images/icons/app-icon-96x96.png',
+    data:{
+      url: data.openUrl
+    }
+  }
+
+  event.waitUntil(
+    self.registration.showNotification(data.title, options)
+  );
 });
