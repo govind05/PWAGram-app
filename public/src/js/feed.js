@@ -5,11 +5,112 @@ var sharedMomentsArea = document.querySelector('#shared-moments');
 var form = document.querySelector('form');
 let titleInput = document.querySelector('#title');
 let locationInput = document.querySelector('#location');
+let videoPlayer = document.querySelector('#player');
+let canvasElement = document.querySelector('#canvas');
+let captureButton = document.querySelector('#capture-btn');
+let imagePicker = document.querySelector('#image-picker');
+let imagePickerArea = document.querySelector('#pick-image');
+let picture;
+let locationBtn = document.querySelector('#location-btn');
+let locationLoader = document.querySelector('#location-loader');
+let fetchedLocation = { lat: 0, lng: 0 };
+
+locationBtn.addEventListener('click', (e) => {
+  if (!('geolocation' in navigator)) {
+    return;
+  }
+  let sawAlert = false;
+  locationBtn.style.display = 'none';
+  locationLoader.style.display = 'block';
+
+  navigator.geolocation.getCurrentPosition((pos) => {
+    locationBtn.style.display = 'inline';
+    locationLoader.style.display = 'none';
+    fetchedLocation = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+    fetch(`https://maps.googleapis.com/maps/api/geocode/json?latlng=${fetchedLocation.lat},${fetchedLocation.lng}&key=AIzaSyDkVK1C2effkHFUjct8zQkh5P5t0l9v6hk`)
+      .then(res => res.json())
+      .then(data => locationInput.value = data.results[0].formatted_address)
+      .catch(err => err);
+    document.querySelector('#manual-location').classList.add('is-focused');
+
+  }, (err) => {
+    console.log(err);
+    locationBtn.style.display = 'inline';
+    locationLoader.style.display = 'none';
+    if (!sawAlert) {
+      sawAlert = true;
+      alert('Couldnt fetch location, please try manually');
+    }
+    fetchedLocation = { lat: 0, lng: 0 };
+  }, {
+      timeout: 7000
+    });
+});
+
+const initializeLocation = () => {
+  if (!('geolocation' in navigator)) {
+    locationBtn.style.display = 'none';
+  }
+};
+
+function initializeMedia() {
+  if (!('mediaDevices' in navigator)) {
+    navigator.mediaDevices = {};
+  }
+
+  if (!('getUserMedia' in navigator.mediaDevices)) {
+    navigator.mediaDevices.getUserMedia = (constraints) => {
+      let getUserMedia = navigator.webkitGetUserMedia || navigator.mozGetUserMedia;
+
+      if (!getUserMedia) {
+        return new Promise.reject(new Error('getUserMedia is not implemented!'));
+      }
+
+      return new Promise((resolve, reject) => {
+        getUserMedia.call(navigator, constraints, resolve, reject);
+      });
+    }
+  }
+
+  navigator.mediaDevices.getUserMedia({ video: true })
+    .then((stream) => {
+      videoPlayer.srcObject = stream;
+      videoPlayer.style.display = 'block';
+      captureButton.style.display = 'inline';
+    })
+    .catch(err => {
+      captureButton.style.display = 'none';
+
+      imagePickerArea.style.display = 'block';
+    });
+}
+
+imagePicker.addEventListener('change', (e) => {
+  picture = e.target.files[0];
+})
+
+captureButton.addEventListener('click', (e) => {
+  canvasElement.style.display = 'block';
+  videoPlayer.style.display = 'none';
+  captureButton.style.display = 'none';
+  let context = canvasElement.getContext('2d');
+  context.drawImage(videoPlayer, 0, 0, canvas.width, canvas.height);
+  // console.log(videoPlayer.videoHeight, canvas.width, videoPlayer.videoWidth, canvas.height, videoPlayer.videoHeight / (videoPlayer.videoWidth / canvas.width))
+  videoPlayer.srcObject.getVideoTracks().forEach(track => {
+    track.stop();
+  });
+  picture = dataURItoBlob(canvasElement.toDataURL());
+})
 
 function openCreatePostModal() {
   // createPostArea.style.display = 'block';
   // setTimeout(() => {
-  createPostArea.style.transform = 'translateY(0)';
+  setTimeout(() => {
+    createPostArea.style.transform = 'translateY(0)';
+  }, 1)
+  initializeMedia();
+  initializeLocation();
+
   // }, 1);
   if (deferredPrompt) {
     deferredPrompt.prompt();
@@ -38,7 +139,18 @@ function openCreatePostModal() {
 }
 
 function closeCreatePostModal() {
-  createPostArea.style.transform = 'translateY(100vh)';
+
+  videoPlayer.style.display = 'none';
+  imagePickerArea.style.display = 'none';
+  canvasElement.style.display = 'none';
+  locationBtn.style.display = 'inline';
+  locationLoader.style.display = 'none';
+  if (videoPlayer.srcObject) {
+    videoPlayer.srcObject.getVideoTracks().forEach(track => track.stop())
+  }
+  setTimeout(() => {
+    createPostArea.style.transform = 'translateY(100vh)';
+  }, 1)
   // createPostArea.style.display = 'none';
 }
 //To save to cache on user request, currently disabled
@@ -126,18 +238,18 @@ if ('indexedDB' in window) {
 }
 
 function sendData() {
+  let id = new Date().toISOString();
+  let postData = new FormData();
+  postData.append('id', id);
+  postData.append('title', titleInput.value);
+  postData.append('location', locationInput.value);
+  postData.append('rawLocationLat', fetchedLocation.lat);
+  postData.append('rawLocationLng', fetchedLocation.lng);
+  postData.append('picture', picture, id + '.png');
+
   fetch('https://us-central1-pwagram-41a48.cloudfunctions.net/storePostData', {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Accept': 'application/json'
-    },
-    body: JSON.stringify({
-      id: new Date().toISOString(),
-      title: titleInput.value,
-      location: locationInput.value,
-      image: "https://firebasestorage.googleapis.com/v0/b/pwagram-41a48.appspot.com/o/Copy%20of%20DSC_0018.JPG?alt=media&token=88aa4852-f00f-4bd7-8453-f960a10604bb"
-    })
+    body: postData
   })
     .then(res => {
       console.log('sent data', res)
@@ -163,6 +275,8 @@ form.addEventListener('submit', (event) => {
           id: new Date().toISOString(),
           title: titleInput.value,
           location: locationInput.value,
+          picture: picture,
+          rawLocation: fetchedLocation
         };
         writeData('sync-posts', post)
           .then(() => {

@@ -1,12 +1,13 @@
 importScripts('/src/js/idb.js');
 importScripts('/src/js/utility.js');
 
-const CACHE_STATIC_NAME = 'static-v26';
-const CACHE_DYNAMIC_NAME = 'dynamic-v3';
+const CACHE_STATIC_NAME = 'static-v47';
+const CACHE_DYNAMIC_NAME = 'dynamic-v4';
 const STATIC_FILES = ['/',
   '/index.html',
   '/offline.html',
   '/src/js/app.js',
+  '/src/js/utility.js',
   '/src/js/feed.js',
   '/src/js/idb.js',
   '/src/js/fetch.js',
@@ -186,18 +187,17 @@ self.addEventListener('sync', function (event) {
       readAllData('sync-posts')
         .then(data => {
           for (let dt of data) {
+            let postData = new FormData();
+            postData.append('id', dt.id);
+            postData.append('title', dt.title);
+            postData.append('location', dt.location);
+            postData.append('rawLocationLat', dt.rawLocation.lat);
+            postData.append('rawLocationLng', dt.rawLocation.lng);
+            postData.append('picture', dt.picture, dt.id + '.png');
+            
             fetch('https://us-central1-pwagram-41a48.cloudfunctions.net/storePostData', {
               method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-                'Accept': 'application/json'
-              },
-              body: JSON.stringify({
-                id: dt.id,
-                title: dt.title,
-                location: dt.location,
-                image: "https://firebasestorage.googleapis.com/v0/b/pwagram-41a48.appspot.com/o/Copy%20of%20DSC_0018.JPG?alt=media&token=88aa4852-f00f-4bd7-8453-f960a10604bb"
-              })
+              body: postData
             })
               .then(res => {
                 console.log('sent data', res);
@@ -260,8 +260,8 @@ self.addEventListener('push', event => {
     body: data.content,
     icon: '/src/images/icons/app-icon-96x96.png',
     badge: '/src/images/icons/app-icon-96x96.png',
-    data:{
-      url: data.openUrl
+    data: {
+      url: '/'
     }
   }
 
